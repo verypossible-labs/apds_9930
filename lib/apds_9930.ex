@@ -113,8 +113,12 @@ defmodule APDS_9930 do
     GenServer.call(pid, :clear_all_int)
   end
 
-  def read_register(pid, reg, len \\ 1) do
-    GenServer.call(pid, {:read_reg, reg, len})
+  def read_register(pid, register, len \\ 1) do
+    GenServer.call(pid, {:read_register, register, len})
+  end
+
+  def write_register(pid, register, data) do
+    GenServer.call(pid, {:write_register, register, data})
   end
 
   def init(opts) do
@@ -124,23 +128,27 @@ defmodule APDS_9930 do
   end
 
   def handle_continue(nil, i2c) do
-    with :ok <- write_register(i2c, :enable, <<0x00>>),
-      :ok <- write_register(i2c, :atime, <<@default_atime>>),
-      :ok <- write_register(i2c, :wtime, <<@default_wtime>>),
-      :ok <- write_register(i2c, :wtime, <<@default_ptime>>),
-      :ok <- write_register(i2c, :ppulse, <<@default_ppulse>>),
-      :ok <- write_register(i2c, :poffset, <<@default_poffset>>),
-      :ok <- write_register(i2c, :config, <<@default_config>>),
-      :ok <- write_register(i2c, :pers, <<@default_pers>>),
-      :ok <- write_register(i2c, :control, <<@default_control>>)
+    with :ok <- do_write_register(i2c, :enable, <<0x00>>),
+      :ok <- do_write_register(i2c, :atime, <<@default_atime>>),
+      :ok <- do_write_register(i2c, :wtime, <<@default_wtime>>),
+      :ok <- do_write_register(i2c, :wtime, <<@default_ptime>>),
+      :ok <- do_write_register(i2c, :ppulse, <<@default_ppulse>>),
+      :ok <- do_write_register(i2c, :poffset, <<@default_poffset>>),
+      :ok <- do_write_register(i2c, :config, <<@default_config>>),
+      :ok <- do_write_register(i2c, :pers, <<@default_pers>>),
+      :ok <- do_write_register(i2c, :control, <<@default_control>>)
       do
 
     end
     {:noreply, i2c}
   end
 
-  def handle_call({:read_reg, reg, len}, _from, i2c) do
-    {:reply, do_read_register(i2c, reg, len), i2c}
+  def handle_call({:read_register, register, len}, _from, i2c) do
+    {:reply, do_read_register(i2c, register, len), i2c}
+  end
+
+  def handle_call({:write_register, register, data}, _from, i2c) do
+    {:reply, do_write_register(i2c, register, data), i2c}
   end
 
   def handle_call({:set_mode, mode, enable}, _from, i2c) do
@@ -150,7 +158,7 @@ defmodule APDS_9930 do
           modes <- Keyword.put(modes, mode, enable),
           modes <- encode_modes(modes) do
 
-        write_register(i2c, :enable, modes)
+        do_write_register(i2c, :enable, modes)
       end
     {:reply, reply, i2c}
   end
@@ -189,11 +197,11 @@ defmodule APDS_9930 do
   end
 
   def handle_call({:set_prox_int_low, prox_int_low}, _from, i2c) do
-    {:reply, write_register(i2c, :piltl, <<prox_int_low>>), i2c}
+    {:reply, do_write_register(i2c, :piltl, <<prox_int_low>>), i2c}
   end
 
   def handle_call({:set_prox_int_high, prox_int_high}, _from, i2c) do
-    {:reply, write_register(i2c, :pihtl, <<prox_int_high>>), i2c}
+    {:reply, do_write_register(i2c, :pihtl, <<prox_int_high>>), i2c}
   end
 
   def handle_call(:clear_prox_int, _from, i2c) do
@@ -258,7 +266,7 @@ defmodule APDS_9930 do
     I2C.write(i2c, @address, byte)
   end
 
-  def write_register(i2c, register, data) do
+  defp do_write_register(i2c, register, data) do
     register = register(register)
     auto_increment = bool_to_int(byte_size(data) > 1)
     I2C.write(i2c, @address, <<
@@ -277,7 +285,7 @@ defmodule APDS_9930 do
 
   defp do_set_modes(modes, i2c) do
     with modes <- encode_modes(modes) do
-      write_register(i2c, :enable, modes)
+      do_write_register(i2c, :enable, modes)
     end
   end
 end
