@@ -113,8 +113,8 @@ defmodule APDS_9930 do
     GenServer.call(pid, :clear_all_int)
   end
 
-  def read_register(pid, reg) do
-    GenServer.call(pid, {:read_reg, reg})
+  def read_register(pid, reg, len \\ 1) do
+    GenServer.call(pid, {:read_reg, reg, len})
   end
 
   def init(opts) do
@@ -139,8 +139,8 @@ defmodule APDS_9930 do
     {:noreply, i2c}
   end
 
-  def handle_call({:read_reg, reg}, _from, i2c) do
-    {:reply, do_read_register(i2c, reg), i2c}
+  def handle_call({:read_reg, reg, len}, _from, i2c) do
+    {:reply, do_read_register(i2c, reg, len), i2c}
   end
 
   def handle_call({:set_mode, mode, enable}, _from, i2c) do
@@ -269,7 +269,7 @@ defmodule APDS_9930 do
     >>)
   end
 
-  def do_read_register(i2c, register, len \\ 1) do
+  defp do_read_register(i2c, register, len \\ 1) do
     register = register(register)
     auto_increment = bool_to_int(len > 1)
     I2C.write_read(i2c, @address, <<1 :: 1, auto_increment :: 2, register :: 5>>, len)
